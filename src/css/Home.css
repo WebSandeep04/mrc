@@ -1,0 +1,397 @@
+.home-container {
+  overflow-x: hidden;
+  background: white;
+}
+
+/* Hero Section */
+.hero-section {
+  position: relative;
+  height: 600px;
+  display: flex;
+  align-items: center;
+  padding: 0 5%;
+  background: white;
+  overflow: hidden;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 10;
+  max-width: 600px;
+}
+
+.hero-title {
+  font-size: 52px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 25px;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 40px;
+}
+
+.explore-pill-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 12px 35px;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 50px;
+  transition: background 0.2s;
+}
+
+.explore-pill-btn span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.hero-footer-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 30px;
+}
+
+.hero-indicators-box {
+  display: flex;
+  gap: 10px;
+}
+
+.hero-bar {
+  width: 60px;
+  height: 6px;
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.hero-bar.active {
+  background: #2563eb;
+}
+
+.hero-bg-visual {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 65%;
+  z-index: 1;
+}
+
+.hero-bg-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.hero-gradient-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right, white 20%, transparent 80%);
+}
+
+.blue-identity-bar {
+  background: #2563eb;
+  color: white;
+  height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 80px;
+}
+
+.identity-item {
+  font-size: 36px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.identity-dot {
+  font-size: 40px;
+  color: white;
+}
+
+/* Looking Section */
+.looking-section {
+  padding: 80px 5%;
+}
+
+.looking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  /* Description aligns with top line of title */
+  margin-bottom: 60px;
+}
+
+.left-title h2 {
+  font-size: 64px;
+  font-weight: 600;
+  /* Bold but not black */
+  line-height: 1.1;
+  color: #000;
+}
+
+.left-title h2 span {
+  color: #2563eb;
+}
+
+.right-desc p {
+  color: #1e293b;
+  font-size: 18px;
+  max-width: 420px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.category-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 25px;
+}
+
+.cat-card {
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  background: white;
+}
+
+.cat-card:hover {
+  transform: translateY(-10px);
+}
+
+.cat-img img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+}
+
+.cat-label {
+  padding: 18px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2563eb;
+  color: white;
+}
+
+.cat-label span:first-child {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.cat-arrow {
+  background: white;
+  color: #2563eb;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Trust Section */
+.trust-section {
+  background: #eef2ff;
+  padding: 100px 5%;
+  text-align: center;
+}
+
+.trust-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.trust-tag {
+  background: #f59e0b;
+  color: white;
+  padding: 6px 20px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.trust-section h2 {
+  font-size: 56px;
+  margin: 30px 0;
+  line-height: 1.1;
+  color: #1e293b;
+}
+
+.trust-section h2 span {
+  color: #2563eb;
+}
+
+.trust-desc {
+  color: #475569;
+  font-size: 20px;
+  margin-bottom: 60px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.brand-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1100px;
+  margin: 60px auto 20px;
+  padding: 0 5%;
+}
+
+.brand-logo-box {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.brand-logo-box img {
+  height: 55px;
+  max-width: 160px;
+  object-fit: contain;
+  transition: transform 0.3s;
+}
+
+.brand-progress-container {
+  max-width: 1000px;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  margin: 0 auto 100px;
+  overflow: hidden;
+}
+
+.brand-progress-bar {
+  width: 35%;
+  height: 100%;
+  background: #2563eb;
+  border-radius: 10px;
+}
+
+/* All Products Section */
+.all-products-section {
+  padding: 100px 5%;
+  background: white;
+  text-align: center;
+}
+
+.section-title {
+  font-size: 56px;
+  margin-bottom: 60px;
+  color: #1e293b;
+}
+
+.section-title span {
+  color: #2563eb;
+}
+
+.product-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2563eb;
+  padding: 15px 30px;
+  border-radius: 10px;
+  margin-bottom: 60px;
+}
+
+.p-search {
+  background: white;
+  border-radius: 30px;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+}
+
+.p-search input {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  width: 130px;
+  color: #64748b;
+}
+
+.search-icon {
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.p-tabs {
+  display: flex;
+  gap: 15px;
+}
+
+.p-tab {
+  background: white;
+  border: none;
+  color: #1e293b;
+  padding: 10px 25px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.p-tab.active {
+  background: white;
+  color: #1e293b;
+}
+
+.product-grid-main {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+  margin-bottom: 60px;
+  text-align: left;
+}
+
+.view-all-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 18px 0;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 20px;
+  transition: opacity 0.2s;
+}
+
+.view-all-btn:hover {
+  opacity: 0.9;
+}
+
+.blue-bar-footer {
+  background: #2563eb;
+  color: white;
+  padding: 20px 5%;
+  text-align: left;
+  font-size: 24px;
+  font-weight: 900;
+}

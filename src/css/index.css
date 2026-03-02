@@ -1,0 +1,30 @@
+:root {
+  --mrc-blue: #2563eb;
+  --mrc-light-blue: #f3f7ff;
+  --mrc-text-dark: #1e293b;
+  --mrc-text-gray: #64748b;
+  --mrc-border: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--mrc-text-dark);
+  background-color: #fff;
+}
+
+.btn-primary {
+  background-color: var(--mrc-blue);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
