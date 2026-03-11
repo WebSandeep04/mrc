@@ -12,7 +12,7 @@ export default function AdminLogin() {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
 
   useEffect(() => {
-    document.title = 'Admin Login | MRC Management';
+    document.title = 'Admin Login | MRC. Management';
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
       metaDescription.setAttribute('content', 'Secure admin access for MRC Management System.');
