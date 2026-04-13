@@ -18,6 +18,7 @@ return new class extends Migration
             $table->decimal('price', 12, 2);
             $table->decimal('compare_at_price', 12, 2)->nullable();
             $table->unsignedInteger('stock_quantity')->default(0);
+            $table->string('file_path')->nullable();
             $table->boolean('is_active')->default(true);
             $table->softDeletes();
             $table->timestamps();

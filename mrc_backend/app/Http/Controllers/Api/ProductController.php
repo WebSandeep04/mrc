@@ -87,11 +87,17 @@ class ProductController extends Controller
 
             $prices = [];
             foreach ($request->variants as $variantData) {
+                $variantPath = null;
+                if (!empty($variantData['file_path']) && str_starts_with($variantData['file_path'], 'data:image')) {
+                    $variantPath = $this->saveBase64Image($variantData['file_path'], 'products');
+                }
+
                 $variant = $product->variants()->create([
                     'sku' => $variantData['sku'],
                     'price' => $variantData['price'],
                     'compare_at_price' => $variantData['compare_at_price'] ?? null,
                     'stock_quantity' => $variantData['stock_quantity'],
+                    'file_path' => $variantPath ?? ($variantData['file_path'] ?? null),
                 ]);
 
                 if (!empty($variantData['attribute_values'])) {
@@ -107,13 +113,13 @@ class ProductController extends Controller
 
             $this->handleImages($product, $request->file('images') ?? $request->input('images'));
 
-            return response()->json($product->load('variants.attributeValues', 'categories', 'images'), 201);
+            return response()->json($product->load('variants.attributeValues', 'categories', 'brands', 'images'), 201);
         });
     }
 
     public function show(Product $product)
     {
-        return response()->json($product->load(['brand', 'categories', 'variants.attributeValues.attribute', 'images']));
+        return response()->json($product->load(['brands', 'categories', 'variants.attributeValues.attribute', 'images']));
     }
 
     public function update(Request $request, Product $product)
@@ -151,12 +157,18 @@ class ProductController extends Controller
                 $prices = [];
 
                 foreach ($request->variants as $variantData) {
+                    $variantPath = null;
+                    if (!empty($variantData['file_path']) && str_starts_with($variantData['file_path'], 'data:image')) {
+                        $variantPath = $this->saveBase64Image($variantData['file_path'], 'products');
+                    }
+
                     $variant = $product->variants()->updateOrCreate(
                         ['sku' => $variantData['sku']], // Use SKU as unique identifier
                         [
                             'price' => $variantData['price'],
                             'compare_at_price' => $variantData['compare_at_price'] ?? null,
                             'stock_quantity' => $variantData['stock_quantity'],
+                            'file_path' => $variantPath ?? ($variantData['file_path'] ?? null),
                         ]
                     );
 
@@ -186,7 +198,7 @@ class ProductController extends Controller
                 $this->handleImages($product, $request->file('images') ?? $request->input('images'));
             }
 
-            return response()->json($product->load('variants', 'categories', 'images'));
+            return response()->json($product->load('variants', 'categories', 'brands', 'images'));
         });
     }
 
@@ -203,20 +215,26 @@ class ProductController extends Controller
                     'sort_order' => $index
                 ]);
             } elseif (is_string($image) && str_starts_with($image, 'data:image')) {
-                // Handle Base64
-                $imageData = explode(',', $image);
-                $extension = str_replace(['data:image/', ';base64'], '', $imageData[0]);
-                $fileName = Str::random(20) . '.' . $extension;
-                $decodedImage = base64_decode($imageData[1]);
-                Storage::disk('public')->put('products/' . $fileName, $decodedImage);
+                $filePath = $this->saveBase64Image($image, 'products');
                 
                 $product->images()->create([
-                    'file_path' => 'products/' . $fileName,
+                    'file_path' => $filePath,
                     'is_primary' => $index === 0,
                     'sort_order' => $index
                 ]);
             }
         }
+    }
+
+    private function saveBase64Image($base64String, $directory)
+    {
+        $imageData = explode(',', $base64String);
+        $extension = str_replace(['data:image/', ';base64'], '', $imageData[0]);
+        $fileName = Str::random(20) . '.' . $extension;
+        $decodedImage = base64_decode($imageData[1]);
+        $path = $directory . '/' . $fileName;
+        Storage::disk('public')->put($path, $decodedImage);
+        return $path;
     }
 
     public function destroy(Product $product)

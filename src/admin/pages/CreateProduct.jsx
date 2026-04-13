@@ -31,6 +31,7 @@ const CreateProduct = () => {
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
+    const [variants, setVariants] = useState([]); // Array of {sku, price, stock, attribute_values: []}
 
     const [selectedAttributes, setSelectedAttributes] = useState([]);
     const [productType, setProductType] = useState('simple');
@@ -71,29 +72,50 @@ const CreateProduct = () => {
                     if (data.variants && data.variants.length > 0) {
                         const firstVariant = data.variants[0];
                         setSku(firstVariant.sku || '');
-                        setPrice(data.variants.length === 1 ? (firstVariant.price || '') : (data.min_price || ''));
+                        setPrice(firstVariant.price || '');
                         setCompareAtPrice(firstVariant.compare_at_price || '');
-                        setStockQuantity(data.variants.reduce((sum, v) => sum + parseInt(v.stock_quantity || 0), 0));
+                        setStockQuantity(firstVariant.stock_quantity || '');
 
+                        // Load the variants table for variable products
+                        if (data.type === 'variable') {
+                            const formattedVariants = data.variants.map(v => ({
+                                id: v.id,
+                                label: (v.attribute_values || []).map(av => av.value).join(', ') || 'Variant',
+                                sku: v.sku,
+                                price: v.price,
+                                stock_quantity: v.stock_quantity,
+                                file_path: v.file_path,
+                                attribute_values: (v.attribute_values || []).map(av => av.id)
+                            }));
+                            setVariants(formattedVariants);
+                            setActiveTab('attributes'); // Default to attributes for variable
+                        }
+
+                        // Reconstruct selectedAttributes for UI
                         const uiAttrsMap = {};
                         data.variants.forEach(v => {
                             (v.attribute_values || []).forEach(av => {
                                 if (!uiAttrsMap[av.attribute_id]) {
-                                    uiAttrsMap[av.attribute_id] = new Set();
+                                    uiAttrsMap[av.attribute_id] = {
+                                        id: av.attribute_id,
+                                        name: av.attribute?.name || 'Attribute',
+                                        values: new Set()
+                                    };
                                 }
-                                uiAttrsMap[av.attribute_id].add(av.id);
+                                uiAttrsMap[av.attribute_id].values.add(av.id);
                             });
                         });
-                        const remappedAttributes = Object.keys(uiAttrsMap).map(attrId => ({
-                            id: parseInt(attrId),
-                            name: 'Loaded Attribute',
-                            values: Array.from(uiAttrsMap[attrId])
+                        const remappedAttributes = Object.values(uiAttrsMap).map(attr => ({
+                            id: attr.id,
+                            name: attr.name,
+                            values: Array.from(attr.values)
                         }));
                         setSelectedAttributes(remappedAttributes);
                     }
                     if (data.images) {
                         setProductImages(data.images.map(img => img.file_path));
                     }
+                    setIsLoadingData(false);
                 })
                 .catch(err => {
                     toast.error("Failed to load product details");
@@ -103,6 +125,49 @@ const CreateProduct = () => {
                 });
         }
     }, [id]);
+
+    const generateVariants = () => {
+        const selected = selectedAttributes.filter(a => a.values.length > 0);
+        if (selected.length === 0) {
+            toast.error("Please select at least one attribute value first.");
+            return;
+        }
+
+        // Generate combinations
+        const combinations = selected.reduce((acc, attr) => {
+            const result = [];
+            attr.values.forEach(valId => {
+                const valObj = attributesList.find(a => a.id === attr.id).values.find(v => v.id === valId);
+                if (acc.length === 0) {
+                    result.push({
+                        label: valObj.value,
+                        attribute_values: [valId]
+                    });
+                } else {
+                    acc.forEach(prev => {
+                        result.push({
+                            label: `${prev.label} / ${valObj.value}`,
+                            attribute_values: [...prev.attribute_values, valId]
+                        });
+                    });
+                }
+            });
+            return result;
+        }, []);
+
+        const newVariants = combinations.map(comb => ({
+            label: comb.label,
+            sku: `${sku || 'SKU'}-${comb.label.replace(/\s+/g, '').toUpperCase()}`,
+            price: price || '',
+            stock_quantity: stockQuantity || '',
+            file_path: '', // NEW: Variant specific image
+            attribute_values: comb.attribute_values
+        }));
+
+        setVariants(newVariants);
+        setActiveTab('variants');
+        toast.success(`Generated ${newVariants.length} variations.`);
+    };
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
@@ -195,15 +260,9 @@ const CreateProduct = () => {
                 status,
                 type: productType,
                 images: productImages,
-                variants: [
-                    {
-                        sku: sku,
-                        price: price,
-                        compare_at_price: compareAtPrice,
-                        stock_quantity: stockQuantity,
-                        attribute_values: selectedAttributes.flatMap(a => a.values)
-                    }
-                ]
+                variants: productType === 'simple' 
+                    ? [{ sku, price, compare_at_price: compareAtPrice, stock_quantity: stockQuantity, attribute_values: [] }]
+                    : variants
             };
 
             if (id) {
@@ -283,7 +342,15 @@ const CreateProduct = () => {
                                 className="editor-select auto-width"
                                 style={{ border: 'none', background: 'transparent', fontWeight: 'bold', fontSize: '14px', color: '#2271b1', cursor: 'pointer', outline: 'none' }}
                                 value={productType}
-                                onChange={e => setProductType(e.target.value)}
+                                onChange={e => {
+                                    const newType = e.target.value;
+                                    setProductType(newType);
+                                    if (newType === 'variable') {
+                                        setActiveTab('attributes');
+                                    } else {
+                                        setActiveTab('general');
+                                    }
+                                }}
                             >
                                 <option value="simple">Simple product</option>
                                 <option value="variable">Variable product</option>
@@ -292,9 +359,17 @@ const CreateProduct = () => {
 
                         <div className="product-data-body d-flex">
                             <div className="product-data-tabs">
-                                <div className={`pd-tab ${activeTab === 'general' ? 'active' : ''}`} onClick={() => setActiveTab('general')}>General</div>
-                                <div className={`pd-tab ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Inventory</div>
-                                <div className={`pd-tab ${activeTab === 'attributes' ? 'active' : ''}`} onClick={() => setActiveTab('attributes')}>Attributes</div>
+                                {productType === 'simple' ? (
+                                    <>
+                                        <div className={`pd-tab ${activeTab === 'general' ? 'active' : ''}`} onClick={() => setActiveTab('general')}>General</div>
+                                        <div className={`pd-tab ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Inventory</div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className={`pd-tab ${activeTab === 'attributes' ? 'active' : ''}`} onClick={() => setActiveTab('attributes')}>Attributes</div>
+                                        <div className={`pd-tab ${activeTab === 'variants' ? 'active' : ''}`} onClick={() => setActiveTab('variants')}>Variations</div>
+                                    </>
+                                )}
                                 <div className={`pd-tab ${activeTab === 'brand' ? 'active' : ''}`} onClick={() => setActiveTab('brand')}>Brand</div>
                             </div>
                             <div className="product-data-content">
@@ -326,11 +401,12 @@ const CreateProduct = () => {
 
                                 {activeTab === 'attributes' && (
                                     <div className="pd-panel">
-                                        <div className="d-flex align-items-center mb-4 gap-2">
+                                        <div className="d-flex align-items-center gap-2 mb-4 p-2 bg-light border rounded">
                                             <select
-                                                className="editor-select auto-width"
+                                                className="editor-select auto-width m-0"
                                                 id="attribute-to-add"
                                                 defaultValue=""
+                                                style={{ height: '32px' }}
                                             >
                                                 <option value="" disabled>Custom product attribute</option>
                                                 {attributesList.map(attr => (
@@ -339,7 +415,7 @@ const CreateProduct = () => {
                                             </select>
                                             <button
                                                 type="button"
-                                                className="btn-secondary"
+                                                className="btn-secondary btn-sm"
                                                 onClick={() => {
                                                     const selectEl = document.getElementById('attribute-to-add');
                                                     const attrId = parseInt(selectEl.value);
@@ -351,6 +427,19 @@ const CreateProduct = () => {
                                             >
                                                 Add
                                             </button>
+                                            
+                                            <div className="ms-auto">
+                                                {selectedAttributes.length > 0 && (
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn-primary btn-sm px-4" 
+                                                        style={{ height: '32px', background: '#2271b1' }}
+                                                        onClick={generateVariants}
+                                                    >
+                                                        Generate Variations
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="attributes-list">
                                             {selectedAttributes.map((selectedAttr, idx) => {
@@ -391,6 +480,119 @@ const CreateProduct = () => {
                                                 );
                                             })}
                                         </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'variants' && (
+                                    <div className="pd-panel">
+                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                            <h4 className="m-0" style={{ fontSize: '13px', color: '#1d2327' }}>Generated Variations ({variants.length})</h4>
+                                            {variants.length > 0 && (
+                                                <button type="button" className="text-danger border-0 bg-transparent p-0 small" style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setVariants([])}>Clear all variations</button>
+                                            )}
+                                        </div>
+                                        
+                                        {variants.length === 0 ? (
+                                            <div className="text-center py-4 border border-dashed rounded" style={{ background: '#fcfcfc' }}>
+                                                <p className="text-muted small mb-0">No variations generated. Configure attributes and click 'Generate'.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="variations-table-wrapper border rounded overflow-hidden">
+                                                <table className="variations-table w-100" style={{ borderCollapse: 'collapse', fontSize: '12px' }}>
+                                                    <thead style={{ background: '#f6f7f7', borderBottom: '1px solid #dcdcde' }}>
+                                                        <tr>
+                                                            <th className="p-2 text-start" style={{ width: '40px' }}>Img</th>
+                                                            <th className="p-2 text-start" style={{ width: '130px' }}>Variation</th>
+                                                            <th className="p-2 text-start">SKU</th>
+                                                            <th className="p-2 text-start" style={{ width: '100px' }}>Price (₹)</th>
+                                                            <th className="p-2 text-start" style={{ width: '80px' }}>Stock</th>
+                                                            <th className="p-2 text-center" style={{ width: '40px' }}></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {variants.map((v, idx) => (
+                                                            <tr key={idx} style={{ borderBottom: '1px solid #f0f0f1' }}>
+                                                                <td className="p-2">
+                                                                    <div 
+                                                                        className="variant-image-placeholder border rounded d-flex align-items-center justify-content-center bg-light"
+                                                                        style={{ width: '30px', height: '30px', cursor: 'pointer', overflow: 'hidden' }}
+                                                                        onClick={() => {
+                                                                            const input = document.createElement('input');
+                                                                            input.type = 'file';
+                                                                            input.onchange = (e) => {
+                                                                                const file = e.target.files[0];
+                                                                                const reader = new FileReader();
+                                                                                reader.onloadend = () => {
+                                                                                    const newV = [...variants];
+                                                                                    newV[idx].file_path = reader.result;
+                                                                                    setVariants(newV);
+                                                                                };
+                                                                                reader.readAsDataURL(file);
+                                                                            };
+                                                                            input.click();
+                                                                        }}
+                                                                    >
+                                                                        {v.file_path ? (
+                                                                            <img src={v.file_path.startsWith('data:') ? v.file_path : `http://localhost:8000/storage/${v.file_path}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                        ) : (
+                                                                            <span style={{ fontSize: '18px', color: '#ccc' }}>+</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-2 fw-bold text-primary">{v.label}</td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="text" 
+                                                                        className="editor-input py-1 px-2 w-100" 
+                                                                        style={{ fontSize: '12px', height: '28px' }}
+                                                                        value={v.sku} 
+                                                                        onChange={e => {
+                                                                            const newV = [...variants];
+                                                                            newV[idx].sku = e.target.value;
+                                                                            setVariants(newV);
+                                                                        }}
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        className="editor-input py-1 px-2 w-100" 
+                                                                        style={{ fontSize: '12px', height: '28px' }}
+                                                                        value={v.price} 
+                                                                        onChange={e => {
+                                                                            const newV = [...variants];
+                                                                            newV[idx].price = e.target.value;
+                                                                            setVariants(newV);
+                                                                        }}
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        className="editor-input py-1 px-2 w-100" 
+                                                                        style={{ fontSize: '12px', height: '28px' }}
+                                                                        value={v.stock_quantity} 
+                                                                        onChange={e => {
+                                                                            const newV = [...variants];
+                                                                            newV[idx].stock_quantity = e.target.value;
+                                                                            setVariants(newV);
+                                                                        }}
+                                                                    />
+                                                                </td>
+                                                                <td className="p-2 text-center">
+                                                                    <button 
+                                                                        type="button" 
+                                                                        className="text-danger border-0 bg-transparent p-0"
+                                                                        style={{ cursor: 'pointer', fontSize: '14px' }}
+                                                                        onClick={() => setVariants(variants.filter((_, i) => i !== idx))}
+                                                                    >×</button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 {activeTab === 'brand' && (
@@ -478,7 +680,7 @@ const CreateProduct = () => {
 
                     <div className="editor-card sidebar-card">
                         <div className="sidebar-header">
-                            <h3 className="editor-card-title m-0">Product Image</h3>
+                            <h3 className="editor-card-title m-0">Feature Image</h3>
                         </div>
                         <div className="sidebar-body text-center">
                             <input
