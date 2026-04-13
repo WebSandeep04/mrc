@@ -16,7 +16,6 @@ class ProductVariant extends Model
         'price',
         'compare_at_price',
         'stock_quantity',
-        'file_path',
         'is_active',
     ];
 

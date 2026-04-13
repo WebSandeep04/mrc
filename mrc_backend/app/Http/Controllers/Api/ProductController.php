@@ -87,18 +87,21 @@ class ProductController extends Controller
 
             $prices = [];
             foreach ($request->variants as $variantData) {
-                $variantPath = null;
-                if (!empty($variantData['file_path']) && str_starts_with($variantData['file_path'], 'data:image')) {
-                    $variantPath = $this->saveBase64Image($variantData['file_path'], 'products');
-                }
-
                 $variant = $product->variants()->create([
                     'sku' => $variantData['sku'],
                     'price' => $variantData['price'],
                     'compare_at_price' => $variantData['compare_at_price'] ?? null,
                     'stock_quantity' => $variantData['stock_quantity'],
-                    'file_path' => $variantPath ?? ($variantData['file_path'] ?? null),
                 ]);
+
+                if (!empty($variantData['file_path']) && str_starts_with($variantData['file_path'], 'data:image')) {
+                    $variantPath = $this->saveBase64Image($variantData['file_path'], 'products');
+                    $variant->images()->create([
+                        'product_id' => $product->id,
+                        'file_path' => $variantPath,
+                        'is_primary' => false
+                    ]);
+                }
 
                 if (!empty($variantData['attribute_values'])) {
                     $variant->attributeValues()->sync($variantData['attribute_values']);
@@ -113,13 +116,13 @@ class ProductController extends Controller
 
             $this->handleImages($product, $request->file('images') ?? $request->input('images'));
 
-            return response()->json($product->load('variants.attributeValues', 'categories', 'brands', 'images'), 201);
+            return response()->json($product->load('variants.attributeValues', 'variants.images', 'categories', 'brands', 'images'), 201);
         });
     }
 
     public function show(Product $product)
     {
-        return response()->json($product->load(['brands', 'categories', 'variants.attributeValues.attribute', 'images']));
+        return response()->json($product->load(['brands', 'categories', 'variants.attributeValues.attribute', 'variants.images', 'images']));
     }
 
     public function update(Request $request, Product $product)
@@ -157,20 +160,25 @@ class ProductController extends Controller
                 $prices = [];
 
                 foreach ($request->variants as $variantData) {
-                    $variantPath = null;
-                    if (!empty($variantData['file_path']) && str_starts_with($variantData['file_path'], 'data:image')) {
-                        $variantPath = $this->saveBase64Image($variantData['file_path'], 'products');
-                    }
-
                     $variant = $product->variants()->updateOrCreate(
                         ['sku' => $variantData['sku']], // Use SKU as unique identifier
                         [
                             'price' => $variantData['price'],
                             'compare_at_price' => $variantData['compare_at_price'] ?? null,
                             'stock_quantity' => $variantData['stock_quantity'],
-                            'file_path' => $variantPath ?? ($variantData['file_path'] ?? null),
                         ]
                     );
+
+                    if (!empty($variantData['file_path']) && str_starts_with($variantData['file_path'], 'data:image')) {
+                        $variantPath = $this->saveBase64Image($variantData['file_path'], 'products');
+                        // Clear old variant images and add new one (lean approach)
+                        $variant->images()->delete();
+                        $variant->images()->create([
+                            'product_id' => $product->id,
+                            'file_path' => $variantPath,
+                            'is_primary' => false
+                        ]);
+                    }
 
                     if (isset($variantData['attribute_values'])) {
                         $variant->attributeValues()->sync($variantData['attribute_values']);
@@ -198,7 +206,7 @@ class ProductController extends Controller
                 $this->handleImages($product, $request->file('images') ?? $request->input('images'));
             }
 
-            return response()->json($product->load('variants', 'categories', 'brands', 'images'));
+            return response()->json($product->load('variants.images', 'variants.attributeValues', 'categories', 'brands', 'images'));
         });
     }
 

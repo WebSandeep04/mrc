@@ -84,7 +84,7 @@ const CreateProduct = () => {
                                 sku: v.sku,
                                 price: v.price,
                                 stock_quantity: v.stock_quantity,
-                                file_path: v.file_path,
+                                file_path: v.images?.[0]?.file_path || '',
                                 attribute_values: (v.attribute_values || []).map(av => av.id)
                             }));
                             setVariants(formattedVariants);
@@ -113,7 +113,7 @@ const CreateProduct = () => {
                         setSelectedAttributes(remappedAttributes);
                     }
                     if (data.images) {
-                        setProductImages(data.images.map(img => img.file_path));
+                        setProductImages(data.images.filter(img => !img.variant_id).map(img => img.file_path));
                     }
                     setIsLoadingData(false);
                 })
