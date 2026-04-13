@@ -20,7 +20,7 @@ const Product = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [formData, setFormData] = useState({
-        name: '', brand_id: '', category_ids: [], status: 'published',
+        name: '', brand_ids: [], category_ids: [], status: 'published',
         variants: [{ sku: '', price: '', stock_quantity: '', attribute_values: [] }]
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -46,7 +46,15 @@ const Product = () => {
                             <span className="text-muted">Uncategorized</span>
                         )}
                     </div>
-                    <div className="text-muted italic">{row.brand?.name || 'No Brand'}</div>
+                    <div className="d-flex flex-wrap gap-1">
+                        {row.brands && row.brands.length > 0 ? (
+                            row.brands.map(brand => (
+                                <span key={brand.id} className="badge badge-info" style={{ fontSize: '10px', backgroundColor: '#e0f2fe', color: '#0369a1' }}>{brand.name}</span>
+                            ))
+                        ) : (
+                            <span className="text-muted italic small">No Brand</span>
+                        )}
+                    </div>
                 </div>
             )
         },
@@ -81,7 +89,7 @@ const Product = () => {
             setEditingProduct(product);
             setFormData({
                 name: product.name,
-                brand_id: product.brand_id || '',
+                brand_ids: product.brands ? product.brands.map(b => b.id) : [],
                 category_ids: product.categories ? product.categories.map(c => c.id) : [],
                 status: product.status,
                 variants: product.variants.map(v => ({
@@ -95,7 +103,7 @@ const Product = () => {
         } else {
             setEditingProduct(null);
             setFormData({
-                name: '', brand_id: '', category_ids: [], status: 'published',
+                name: '', brand_ids: [], category_ids: [], status: 'published',
                 variants: [{ sku: '', price: '', stock_quantity: '', attribute_values: [] }]
             });
         }
@@ -195,11 +203,24 @@ const Product = () => {
                                             <input type="text" className="admin-form-input" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Premium Cotton T-Shirt" />
                                         </div>
                                         <div className="admin-form-group col-3">
-                                            <label>Brand</label>
-                                            <select className="admin-form-input" value={formData.brand_id} onChange={e => setFormData({ ...formData, brand_id: e.target.value })}>
-                                                <option value="">Select Brand</option>
-                                                {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                            </select>
+                                            <label>Brands</label>
+                                            <div className="category-select-mini" style={{ maxHeight: '100px', overflowY: 'auto', border: '1px solid #eee', padding: '5px', borderRadius: '4px' }}>
+                                                {brands.map(b => (
+                                                    <label key={b.id} className="d-flex align-items-center gap-2 mb-1 cursor-pointer" style={{ fontSize: '11px' }}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={formData.brand_ids.includes(b.id)} 
+                                                            onChange={e => {
+                                                                const ids = [...formData.brand_ids];
+                                                                if (e.target.checked) ids.push(b.id);
+                                                                else ids.splice(ids.indexOf(b.id), 1);
+                                                                setFormData({ ...formData, brand_ids: ids });
+                                                            }}
+                                                        />
+                                                        {b.name}
+                                                    </label>
+                                                ))}
+                                            </div>
                                         </div>
                                         <div className="admin-form-group col-3">
                                             <label>Categories</label>

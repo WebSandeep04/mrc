@@ -15,7 +15,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['brand', 'categories', 'variants.attributeValues.attribute']);
+        $query = Product::with(['brands', 'categories', 'variants.attributeValues.attribute']);
 
         // 1. Filter by Category (Support multiple)
         if ($request->has('category_id')) {
@@ -53,7 +53,8 @@ class ProductController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'brand_id' => 'nullable|exists:brands,id',
+            'brand_ids' => 'nullable|array',
+            'brand_ids.*' => 'exists:brands,id',
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'exists:categories,id',
             'type' => 'required|in:simple,variable',
@@ -67,12 +68,17 @@ class ProductController extends Controller
 
         return DB::transaction(function () use ($request) {
             $productData = $request->only([
-                'name', 'brand_id',
+                'name',
                 'long_description', 'status', 'type'
             ]);
             $productData['slug'] = $request->slug ?? Str::slug($request->name);
 
             $product = Product::create($productData);
+
+            // Many-to-Many Brands
+            if ($request->has('brand_ids')) {
+                $product->brands()->sync($request->brand_ids);
+            }
 
             // Many-to-Many Categories
             if ($request->has('category_ids')) {
@@ -114,7 +120,8 @@ class ProductController extends Controller
     {
         $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'brand_id' => 'nullable|exists:brands,id',
+            'brand_ids' => 'nullable|array',
+            'brand_ids.*' => 'exists:brands,id',
             'category_ids' => 'nullable|array',
             'type' => 'sometimes|required|in:simple,variable',
             'variants' => 'sometimes|array|min:1',
@@ -123,9 +130,13 @@ class ProductController extends Controller
 
         return DB::transaction(function () use ($request, $product) {
             $product->update($request->only([
-                'name', 'brand_id',
+                'name',
                 'long_description', 'status', 'type'
             ]));
+
+            if ($request->has('brand_ids')) {
+                $product->brands()->sync($request->brand_ids);
+            }
 
             if ($request->has('name')) {
                 $product->update(['slug' => Str::slug($request->name)]);

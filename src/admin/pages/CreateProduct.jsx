@@ -27,8 +27,8 @@ const CreateProduct = () => {
     const [sku, setSku] = useState('');
     const [stockQuantity, setStockQuantity] = useState('');
     const [status, setStatus] = useState('draft'); // Default correctly to draft based on schema
+    const [brandIds, setBrandIds] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
-    const [brandId, setBrandId] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
 
@@ -63,7 +63,7 @@ const CreateProduct = () => {
                     setDescription(data.long_description || '');
                     setStatus(data.status || 'draft');
                     setProductType(data.type || 'simple');
-                    setBrandId(data.brand_id || '');
+                    if (data.brands) setBrandIds(data.brands.map(b => b.id));
                     if (data.categories) {
                         setSelectedCategories(data.categories.map(c => c.id));
                     }
@@ -113,7 +113,7 @@ const CreateProduct = () => {
                 reader.readAsDataURL(file);
             });
         });
-        
+
         Promise.all(readers).then(results => {
             setProductImages([...productImages, ...results]);
         });
@@ -130,9 +130,9 @@ const CreateProduct = () => {
     const toggleCategory = (categoryId, e) => {
         e.preventDefault();
         e.stopPropagation();
-        setExpandedCategories(prev => 
-            prev.includes(categoryId) 
-                ? prev.filter(id => id !== categoryId) 
+        setExpandedCategories(prev =>
+            prev.includes(categoryId)
+                ? prev.filter(id => id !== categoryId)
                 : [...prev, categoryId]
         );
     };
@@ -146,7 +146,7 @@ const CreateProduct = () => {
                 <div key={cat.id} style={{ paddingLeft: `${depth * 14}px`, marginBottom: '4px' }}>
                     <div className="category-item-row" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         {hasChildren ? (
-                            <span 
+                            <span
                                 className={`category-toggle ${isExpanded ? 'active' : ''}`}
                                 onClick={(e) => toggleCategory(cat.id, e)}
                                 style={{ cursor: 'pointer', fontSize: '10px', width: '12px', display: 'flex', justifyContent: 'center', color: '#888' }}
@@ -190,7 +190,7 @@ const CreateProduct = () => {
                 name: title,
                 slug,
                 long_description: description,
-                brand_id: brandId || null,
+                brand_ids: brandIds,
                 category_ids: selectedCategories,
                 status,
                 type: productType,
@@ -262,16 +262,7 @@ const CreateProduct = () => {
                                 autoFocus
                             />
                         </div>
-                        <div className="form-group d-flex align-items-center gap-2 mb-4" style={{ fontSize: '13px', color: '#666' }}>
-                            <strong>Permalink:</strong> {window.location.host}/product/
-                            <input
-                                type="text"
-                                className="slug-input"
-                                value={slug}
-                                onChange={(e) => setSlug(e.target.value)}
-                                placeholder="product-slug"
-                            />
-                        </div>
+
 
                         <div className="form-group mb-4">
                             <label className="editor-label">Product Description</label>
@@ -286,8 +277,17 @@ const CreateProduct = () => {
                     </div>
 
                     <div className="editor-card product-data-card">
-                        <div className="product-data-header">
-                            <h2 className="editor-card-title m-0">Product Data</h2>
+                        <div className="product-data-header d-flex align-items-center gap-3 p-2 border-bottom bg-light">
+                            <h2 className="editor-card-title m-0 ps-2" style={{ fontSize: '14px', color: '#1d2327' }}>Product Data —</h2>
+                            <select
+                                className="editor-select auto-width"
+                                style={{ border: 'none', background: 'transparent', fontWeight: 'bold', fontSize: '14px', color: '#2271b1', cursor: 'pointer', outline: 'none' }}
+                                value={productType}
+                                onChange={e => setProductType(e.target.value)}
+                            >
+                                <option value="simple">Simple product</option>
+                                <option value="variable">Variable product</option>
+                            </select>
                         </div>
 
                         <div className="product-data-body d-flex">
@@ -396,14 +396,46 @@ const CreateProduct = () => {
                                 {activeTab === 'brand' && (
                                     <div className="pd-panel">
                                         <div className="pd-row">
-                                            <label>Select Brand</label>
-                                            <select className="editor-select" value={brandId} onChange={e => setBrandId(e.target.value)}>
-                                                <option value="">No Brand (Standard)</option>
+
+                                            <select
+                                                className="editor-input"
+                                                onChange={e => {
+                                                    const id = parseInt(e.target.value);
+                                                    if (id && !brandIds.includes(id)) {
+                                                        setBrandIds([...brandIds, id]);
+                                                    }
+                                                    e.target.value = "";
+                                                }}
+                                            >
+                                                <option value="">Choose Brands...</option>
                                                 {brands.map(brand => (
-                                                    <option key={brand.id} value={brand.id}>{brand.name}</option>
+                                                    <option key={brand.id} value={brand.id} disabled={brandIds.includes(brand.id)}>
+                                                        {brand.name}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
+
+                                        {brandIds.length > 0 && (
+                                            <div className="pd-row align-items-start mt-3">
+                                                <label>Selected Brands</label>
+                                                <div className="d-flex flex-wrap gap-2" style={{ flex: 1 }}>
+                                                    {brandIds.map(id => {
+                                                        const brand = brands.find(b => b.id === id);
+                                                        return brand && (
+                                                            <div key={id} className="selected-tag">
+                                                                <span>{brand.name}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="tag-remove"
+                                                                    onClick={() => setBrandIds(brandIds.filter(bid => bid !== id))}
+                                                                >×</button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -449,11 +481,11 @@ const CreateProduct = () => {
                             <h3 className="editor-card-title m-0">Product Image</h3>
                         </div>
                         <div className="sidebar-body text-center">
-                            <input 
-                                type="file" 
-                                multiple 
-                                id="product-images-input" 
-                                style={{ display: 'none' }} 
+                            <input
+                                type="file"
+                                multiple
+                                id="product-images-input"
+                                style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
                             <div className="image-upload-area" onClick={() => document.getElementById('product-images-input').click()} style={{ cursor: 'pointer' }}>
@@ -468,14 +500,14 @@ const CreateProduct = () => {
                             <div className="d-flex flex-wrap gap-2 mt-3">
                                 {productImages.map((img, i) => (
                                     <div key={i} className="position-relative" style={{ width: '60px', height: '60px' }}>
-                                        <img 
-                                            src={img.startsWith('data:') ? img : `http://localhost:8000/storage/${img}`} 
-                                            alt="" 
+                                        <img
+                                            src={img.startsWith('data:') ? img : `http://localhost:8000/storage/${img}`}
+                                            alt=""
                                             style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }}
                                         />
-                                        <button 
-                                            type="button" 
-                                            className="btn-close-small" 
+                                        <button
+                                            type="button"
+                                            className="btn-close-small"
                                             style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '15px', height: '15px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                             onClick={(e) => {
                                                 e.stopPropagation();

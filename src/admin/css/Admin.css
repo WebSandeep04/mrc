@@ -2533,3 +2533,30 @@
     from { opacity: 0; }
     to { opacity: 1; }
 }
+/* Brand Selection Tags */
+.selected-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0f0f1;
+    border: 1px solid #8c8f94;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #1d2327;
+}
+
+.tag-remove {
+    background: none;
+    border: none;
+    color: #d63638;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    line-height: 1;
+    font-weight: bold;
+}
+
+.tag-remove:hover {
+    color: #b32d2e;
+}

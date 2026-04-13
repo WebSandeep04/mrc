@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('brand_id')->nullable()->constrained()->onDelete('set null');
             $table->string('name');
             $table->string('slug')->unique();
             $table->longText('long_description')->nullable();
@@ -25,7 +24,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes for core filtering
-            $table->index(['brand_id', 'status'], 'idx_brand_status');
+            $table->index(['status'], 'idx_status');
             $table->index(['status', 'min_price', 'max_price'], 'idx_price_range');
         });
 
@@ -36,6 +35,14 @@ return new class extends Migration
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
+
+        // Pivot table for Many-to-Many Brands
+        Schema::create('brand_product', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->foreignId('brand_id')->constrained()->onDelete('cascade');
+            $table->timestamps();
+        });
     }
 
     /**
@@ -43,6 +50,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('brand_product');
         Schema::dropIfExists('category_product');
         Schema::dropIfExists('products');
     }
