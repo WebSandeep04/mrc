@@ -15,13 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->string('sku')->unique();
-            $table->string('barcode')->nullable();
             $table->decimal('price', 12, 2);
             $table->decimal('compare_at_price', 12, 2)->nullable();
             $table->unsignedInteger('stock_quantity')->default(0);
             $table->boolean('is_active')->default(true);
-            $table->decimal('weight', 8, 2)->nullable();
-            $table->string('dimensions')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

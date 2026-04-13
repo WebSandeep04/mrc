@@ -19,8 +19,6 @@ class AttributeController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'display_name' => 'required|string|max:255',
-            'type' => 'nullable|string|in:text,select,swatch',
             'values' => 'nullable|array',
             'values.*.value' => 'required_with:values|string',
             'values.*.meta' => 'nullable|string'
@@ -48,8 +46,6 @@ class AttributeController extends Controller
     {
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'display_name' => 'sometimes|required|string|max:255',
-            'type' => 'nullable|string|in:text,select,swatch',
         ]);
 
         if ($request->has('name')) {

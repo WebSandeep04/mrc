@@ -12,16 +12,13 @@ class Product extends Model
 
     protected $fillable = [
         'brand_id',
-        'category_id',
         'name',
         'slug',
-        'short_description',
         'long_description',
         'min_price',
         'max_price',
         'status',
-        'seo_title',
-        'seo_description',
+        'type',
     ];
 
     public function brand()
@@ -29,9 +26,9 @@ class Product extends Model
         return $this->belongsTo(Brand::class);
     }
 
-    public function category()
+    public function categories()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsToMany(Category::class, 'category_product');
     }
 
     public function variants()

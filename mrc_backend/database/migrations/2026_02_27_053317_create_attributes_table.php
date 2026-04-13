@@ -14,9 +14,7 @@ return new class extends Migration
         Schema::create('attributes', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('display_name');
             $table->string('slug')->unique();
-            $table->string('type')->default('select'); // text, select, swatch
             $table->timestamps();
         });
     }

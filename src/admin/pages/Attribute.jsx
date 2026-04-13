@@ -10,7 +10,7 @@ const Attribute = () => {
     const { items: attributes, loading } = useSelector((state) => state.attributes);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAttr, setEditingAttr] = useState(null);
-    const [formData, setFormData] = useState({ name: '', display_name: '', type: 'select', values: [] });
+    const [formData, setFormData] = useState({ name: '', values: [] });
     const [newValue, setNewValue] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -20,8 +20,7 @@ const Attribute = () => {
     }, [dispatch]);
 
     const headers = [
-        { key: 'name', label: 'Internal Name (Code)' },
-        { key: 'display_name', label: 'Display Label' },
+        { key: 'name', label: 'Attribute Name' },
         {
             key: 'values',
             label: 'Configuration Values',
@@ -35,13 +34,6 @@ const Attribute = () => {
                     )}
                 </div>
             )
-        },
-        {
-            key: 'type',
-            label: 'Type',
-            render: (val) => (
-                <span className="badge badge-warning" style={{ fontSize: '9px' }}>{val.toUpperCase()}</span>
-            )
         }
     ];
 
@@ -50,13 +42,11 @@ const Attribute = () => {
             setEditingAttr(attr);
             setFormData({
                 name: attr.name,
-                display_name: attr.display_name,
-                type: attr.type,
                 values: attr.values ? attr.values.map(v => v.value) : []
             });
         } else {
             setEditingAttr(null);
-            setFormData({ name: '', display_name: '', type: 'select', values: [] });
+            setFormData({ name: '', values: [] });
         }
         setNewValue('');
         setIsModalOpen(true);
@@ -103,7 +93,7 @@ const Attribute = () => {
     };
 
     const handleDelete = (attr) => {
-        if (window.confirm(`Delete attribute "${attr.display_name}"? This might impact product variants.`)) {
+        if (window.confirm(`Delete attribute "${attr.name}"? This might impact product variants.`)) {
             dispatch(deleteAttribute(attr.id));
             toast.success('Attribute removed');
         }
@@ -135,38 +125,15 @@ const Attribute = () => {
                         <form onSubmit={handleSubmit}>
                             <div className="modal-body">
                                 <div className="admin-form-group">
-                                    <label>Internal Name (Code)</label>
+                                    <label>Attribute Name</label>
                                     <input
                                         type="text"
                                         className="admin-form-input"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="e.g. storage_capacity"
-                                        required
-                                    />
-                                </div>
-                                <div className="admin-form-group">
-                                    <label>Display Label</label>
-                                    <input
-                                        type="text"
-                                        className="admin-form-input"
-                                        value={formData.display_name}
-                                        onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                                         placeholder="e.g. Storage Capacity"
                                         required
                                     />
-                                </div>
-                                <div className="admin-form-group">
-                                    <label>Input Type</label>
-                                    <select
-                                        className="admin-form-input"
-                                        value={formData.type}
-                                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                    >
-                                        <option value="select">Dropdown Select</option>
-                                        <option value="text">Text Input</option>
-                                        <option value="swatch">Color Swatch</option>
-                                    </select>
                                 </div>
                                 <div className="admin-form-group">
                                     <label>Values Configuration</label>

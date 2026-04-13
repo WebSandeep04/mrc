@@ -2465,3 +2465,71 @@
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
 }
+/* Smooth Animations & Transitions */
+.wp-editor-layout .pd-tab {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wp-editor-layout .pd-panel {
+    animation: panelEnter 0.3s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes panelEnter {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.category-toggle {
+    transition: transform 0.2s ease;
+}
+
+.category-toggle.active {
+    transform: rotate(0deg); /* Transitioning between characters is hard, but we can rotate icons if we used them. Since we use unicode, let's just rotate the container slightly if needed, or focus on children. */
+}
+
+.category-children {
+    animation: slideDown 0.2s ease-out;
+    transform-origin: top;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: scaleY(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+.editor-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.editor-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.btn-primary:active, .btn-secondary:active {
+    transform: scale(0.98);
+}
+
+.custom-checkbox-wrapper .checkbox-visual {
+    transition: all 0.2s ease;
+}
+
+.admin-loader-container {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

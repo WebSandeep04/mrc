@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('attribute_id')->constrained()->onDelete('cascade');
             $table->string('value');
-            $table->string('meta')->nullable(); // For hex codes or additional info
             $table->timestamps();
         });
     }

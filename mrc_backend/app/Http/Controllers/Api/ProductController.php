@@ -8,16 +8,21 @@ use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use App\Models\ProductImage;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['brand', 'category', 'variants.attributeValues.attribute']);
+        $query = Product::with(['brand', 'categories', 'variants.attributeValues.attribute']);
 
-        // 1. Filter by Category
+        // 1. Filter by Category (Support multiple)
         if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
+            $categoryIds = is_array($request->category_id) ? $request->category_id : [$request->category_id];
+            $query->whereHas('categories', function($q) use ($categoryIds) {
+                $q->whereIn('categories.id', $categoryIds);
+            });
         }
 
         // 2. Filter by Brand
@@ -33,9 +38,9 @@ class ProductController extends Controller
             $query->where('min_price', '<=', $request->max_price);
         }
 
-        // 4. Filter by Attributes (Complex)
+        // 4. Filter by Attributes
         if ($request->has('attributes')) {
-            $attributeValueIds = $request->input('attributes'); // Expecting array of attribute_value IDs
+            $attributeValueIds = $request->input('attributes');
             $query->whereHas('variants.attributeValues', function($q) use ($attributeValueIds) {
                 $q->whereIn('attribute_values.id', $attributeValueIds);
             });
@@ -49,96 +54,158 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'brand_id' => 'nullable|exists:brands,id',
-            'category_id' => 'nullable|exists:categories,id',
+            'category_ids' => 'nullable|array',
+            'category_ids.*' => 'exists:categories,id',
+            'type' => 'required|in:simple,variable',
             'variants' => 'required|array|min:1',
             'variants.*.sku' => 'required|string|unique:product_variants,sku',
             'variants.*.price' => 'required|numeric|min:0',
             'variants.*.stock_quantity' => 'required|integer|min:0',
-            'variants.*.attribute_values' => 'required|array',
-            'variants.*.attribute_values.*' => 'exists:attribute_values,id'
+            'variants.*.attribute_values' => 'nullable|array',
+            'images' => 'nullable|array',
         ]);
 
         return DB::transaction(function () use ($request) {
             $productData = $request->only([
-                'name', 'brand_id', 'category_id', 'short_description', 
-                'long_description', 'status', 'seo_title', 'seo_description'
+                'name', 'brand_id',
+                'long_description', 'status', 'type'
             ]);
-            $productData['slug'] = Str::slug($request->name);
+            $productData['slug'] = $request->slug ?? Str::slug($request->name);
 
             $product = Product::create($productData);
+
+            // Many-to-Many Categories
+            if ($request->has('category_ids')) {
+                $product->categories()->sync($request->category_ids);
+            }
 
             $prices = [];
             foreach ($request->variants as $variantData) {
                 $variant = $product->variants()->create([
                     'sku' => $variantData['sku'],
-                    'barcode' => $variantData['barcode'] ?? null,
                     'price' => $variantData['price'],
                     'compare_at_price' => $variantData['compare_at_price'] ?? null,
                     'stock_quantity' => $variantData['stock_quantity'],
-                    'weight' => $variantData['weight'] ?? null,
-                    'dimensions' => $variantData['dimensions'] ?? null,
                 ]);
 
-                $variant->attributeValues()->sync($variantData['attribute_values']);
+                if (!empty($variantData['attribute_values'])) {
+                    $variant->attributeValues()->sync($variantData['attribute_values']);
+                }
                 $prices[] = $variantData['price'];
             }
 
-            // Update min/max price on parent product
             $product->update([
                 'min_price' => min($prices),
                 'max_price' => max($prices)
             ]);
 
-            return response()->json($product->load('variants.attributeValues'), 201);
+            $this->handleImages($product, $request->file('images') ?? $request->input('images'));
+
+            return response()->json($product->load('variants.attributeValues', 'categories', 'images'), 201);
         });
     }
 
     public function show(Product $product)
     {
-        return response()->json($product->load(['brand', 'category', 'variants.attributeValues.attribute', 'images']));
+        return response()->json($product->load(['brand', 'categories', 'variants.attributeValues.attribute', 'images']));
     }
 
     public function update(Request $request, Product $product)
     {
-        // Update product container info
-        $product->update($request->only([
-            'name', 'brand_id', 'category_id', 'short_description', 
-            'long_description', 'status', 'seo_title', 'seo_description'
-        ]));
+        $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'brand_id' => 'nullable|exists:brands,id',
+            'category_ids' => 'nullable|array',
+            'type' => 'sometimes|required|in:simple,variable',
+            'variants' => 'sometimes|array|min:1',
+            'images' => 'nullable|array',
+        ]);
 
-        if ($request->has('name')) {
-            $product->update(['slug' => Str::slug($request->name)]);
-        }
+        return DB::transaction(function () use ($request, $product) {
+            $product->update($request->only([
+                'name', 'brand_id',
+                'long_description', 'status', 'type'
+            ]));
 
-        if ($request->has('variants')) {
-            // Very simplified: delete old, create new for complete one-page edit sync
-            $product->variants()->delete();
-            $prices = [];
-            foreach ($request->variants as $variantData) {
-                $variant = $product->variants()->create([
-                    'sku' => $variantData['sku'],
-                    'barcode' => $variantData['barcode'] ?? null,
-                    'price' => $variantData['price'],
-                    'compare_at_price' => $variantData['compare_at_price'] ?? null,
-                    'stock_quantity' => $variantData['stock_quantity'],
-                    'weight' => $variantData['weight'] ?? null,
-                    'dimensions' => $variantData['dimensions'] ?? null,
-                ]);
+            if ($request->has('name')) {
+                $product->update(['slug' => Str::slug($request->name)]);
+            }
 
-                if (isset($variantData['attribute_values'])) {
-                    $variant->attributeValues()->sync($variantData['attribute_values']);
+            if ($request->has('category_ids')) {
+                $product->categories()->sync($request->category_ids);
+            }
+
+            if ($request->has('variants')) {
+                $incomingVariantIds = [];
+                $prices = [];
+
+                foreach ($request->variants as $variantData) {
+                    $variant = $product->variants()->updateOrCreate(
+                        ['sku' => $variantData['sku']], // Use SKU as unique identifier
+                        [
+                            'price' => $variantData['price'],
+                            'compare_at_price' => $variantData['compare_at_price'] ?? null,
+                            'stock_quantity' => $variantData['stock_quantity'],
+                        ]
+                    );
+
+                    if (isset($variantData['attribute_values'])) {
+                        $variant->attributeValues()->sync($variantData['attribute_values']);
+                    }
+                    
+                    $incomingVariantIds[] = $variant->id;
+                    $prices[] = $variantData['price'];
                 }
-                $prices[] = $variantData['price'];
+
+                // Scalability: Delete variants that are no longer present in the request
+                $product->variants()->whereNotIn('id', $incomingVariantIds)->delete();
+
+                if (count($prices) > 0) {
+                    $product->update([
+                        'min_price' => min($prices),
+                        'max_price' => max($prices)
+                    ]);
+                }
             }
-            if (count($prices) > 0) {
-                $product->update([
-                    'min_price' => min($prices),
-                    'max_price' => max($prices)
+
+            if ($request->has('images')) {
+                // For simplicity, clear and re-add or implement more complex logic. 
+                // Scalability tip: only add new ones, but let's clear for MVP sync.
+                $product->images()->delete();
+                $this->handleImages($product, $request->file('images') ?? $request->input('images'));
+            }
+
+            return response()->json($product->load('variants', 'categories', 'images'));
+        });
+    }
+
+    private function handleImages($product, $images)
+    {
+        if (!$images) return;
+
+        foreach ($images as $index => $image) {
+            if ($image instanceof \Illuminate\Http\UploadedFile) {
+                $path = $image->store('products', 'public');
+                $product->images()->create([
+                    'file_path' => $path,
+                    'is_primary' => $index === 0,
+                    'sort_order' => $index
+                ]);
+            } elseif (is_string($image) && str_starts_with($image, 'data:image')) {
+                // Handle Base64
+                $imageData = explode(',', $image);
+                $extension = str_replace(['data:image/', ';base64'], '', $imageData[0]);
+                $fileName = Str::random(20) . '.' . $extension;
+                $decodedImage = base64_decode($imageData[1]);
+                Storage::disk('public')->put('products/' . $fileName, $decodedImage);
+                
+                $product->images()->create([
+                    'file_path' => 'products/' . $fileName,
+                    'is_primary' => $index === 0,
+                    'sort_order' => $index
                 ]);
             }
         }
-
-        return response()->json($product->load('variants'));
     }
 
     public function destroy(Product $product)

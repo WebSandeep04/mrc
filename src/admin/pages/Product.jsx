@@ -20,7 +20,7 @@ const Product = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [formData, setFormData] = useState({
-        name: '', brand_id: '', category_id: '', short_description: '', status: 'published',
+        name: '', brand_id: '', category_ids: [], status: 'published',
         variants: [{ sku: '', price: '', stock_quantity: '', attribute_values: [] }]
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -37,7 +37,15 @@ const Product = () => {
         {
             key: 'category', label: 'Category / Brand', render: (_, row) => (
                 <div className="text-sm">
-                    <div className="mb-1">{row.category?.name || 'Uncategorized'}</div>
+                    <div className="mb-1 d-flex flex-wrap gap-1">
+                        {row.categories && row.categories.length > 0 ? (
+                            row.categories.map(cat => (
+                                <span key={cat.id} className="badge badge-light" style={{ fontSize: '10px' }}>{cat.name}</span>
+                            ))
+                        ) : (
+                            <span className="text-muted">Uncategorized</span>
+                        )}
+                    </div>
                     <div className="text-muted italic">{row.brand?.name || 'No Brand'}</div>
                 </div>
             )
@@ -74,21 +82,20 @@ const Product = () => {
             setFormData({
                 name: product.name,
                 brand_id: product.brand_id || '',
-                category_id: product.category_id || '',
-                short_description: product.short_description || '',
+                category_ids: product.categories ? product.categories.map(c => c.id) : [],
                 status: product.status,
                 variants: product.variants.map(v => ({
                     id: v.id,
                     sku: v.sku,
                     price: v.price,
                     stock_quantity: v.stock_quantity,
-                    attribute_values: v.attributes ? v.attributes.map(a => a.id) : []
+                    attribute_values: v.attribute_values ? v.attribute_values.map(a => a.id) : []
                 }))
             });
         } else {
             setEditingProduct(null);
             setFormData({
-                name: '', brand_id: '', category_id: '', short_description: '', status: 'published',
+                name: '', brand_id: '', category_ids: [], status: 'published',
                 variants: [{ sku: '', price: '', stock_quantity: '', attribute_values: [] }]
             });
         }
@@ -195,16 +202,25 @@ const Product = () => {
                                             </select>
                                         </div>
                                         <div className="admin-form-group col-3">
-                                            <label>Category</label>
-                                            <select className="admin-form-input" value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}>
-                                                <option value="">Select Category</option>
-                                                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                            </select>
+                                            <label>Categories</label>
+                                            <div className="category-select-mini" style={{ maxHeight: '100px', overflowY: 'auto', border: '1px solid #eee', padding: '5px', borderRadius: '4px' }}>
+                                                {categories.map(c => (
+                                                    <label key={c.id} className="d-flex align-items-center gap-2 mb-1 cursor-pointer" style={{ fontSize: '11px' }}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={formData.category_ids.includes(c.id)} 
+                                                            onChange={e => {
+                                                                const ids = [...formData.category_ids];
+                                                                if (e.target.checked) ids.push(c.id);
+                                                                else ids.splice(ids.indexOf(c.id), 1);
+                                                                setFormData({ ...formData, category_ids: ids });
+                                                            }}
+                                                        />
+                                                        {c.name}
+                                                    </label>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="admin-form-group">
-                                        <label>Short Description</label>
-                                        <textarea className="admin-form-input" rows="2" value={formData.short_description} onChange={e => setFormData({ ...formData, short_description: e.target.value })} placeholder="Briefly describe the product..."></textarea>
                                     </div>
                                 </section>
 

@@ -18,27 +18,24 @@ const CreateProduct = () => {
     const { items: brands } = useSelector((state) => state.brands);
     const { items: attributesList } = useSelector((state) => state.attributes);
 
-    // Product State Let's keep it similar to WP
+    // Product State 
     const [title, setTitle] = useState('');
     const [slug, setSlug] = useState('');
     const [description, setDescription] = useState('');
-    const [shortDescription, setShortDescription] = useState('');
     const [price, setPrice] = useState('');
     const [compareAtPrice, setCompareAtPrice] = useState('');
     const [sku, setSku] = useState('');
-    const [barcode, setBarcode] = useState('');
-    const [weight, setWeight] = useState('');
-    const [dimensions, setDimensions] = useState('');
     const [stockQuantity, setStockQuantity] = useState('');
     const [status, setStatus] = useState('draft'); // Default correctly to draft based on schema
-    const [seoTitle, setSeoTitle] = useState('');
-    const [seoDescription, setSeoDescription] = useState('');
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [brandId, setBrandId] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
 
     const [selectedAttributes, setSelectedAttributes] = useState([]);
+    const [productType, setProductType] = useState('simple');
+    const [productImages, setProductImages] = useState([]);
+    const [expandedCategories, setExpandedCategories] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(false);
 
     useEffect(() => {
@@ -64,25 +61,20 @@ const CreateProduct = () => {
                     setTitle(data.name || '');
                     setSlug(data.slug || '');
                     setDescription(data.long_description || '');
-                    setShortDescription(data.short_description || '');
                     setStatus(data.status || 'draft');
-                    setSeoTitle(data.seo_title || '');
-                    setSeoDescription(data.seo_description || '');
+                    setProductType(data.type || 'simple');
                     setBrandId(data.brand_id || '');
-                    if (data.category_id) setSelectedCategories([data.category_id]);
+                    if (data.categories) {
+                        setSelectedCategories(data.categories.map(c => c.id));
+                    }
 
                     if (data.variants && data.variants.length > 0) {
                         const firstVariant = data.variants[0];
-                        // Always populate the primary state from whatever min/first variant is to prevent empty variables on tab switching
                         setSku(firstVariant.sku || '');
-                        setBarcode(firstVariant.barcode || '');
                         setPrice(data.variants.length === 1 ? (firstVariant.price || '') : (data.min_price || ''));
                         setCompareAtPrice(firstVariant.compare_at_price || '');
                         setStockQuantity(data.variants.reduce((sum, v) => sum + parseInt(v.stock_quantity || 0), 0));
-                        setWeight(firstVariant.weight || '');
-                        setDimensions(firstVariant.dimensions || '');
 
-                        // Safely extract matched attributes for editing to map to UI
                         const uiAttrsMap = {};
                         data.variants.forEach(v => {
                             (v.attribute_values || []).forEach(av => {
@@ -94,10 +86,13 @@ const CreateProduct = () => {
                         });
                         const remappedAttributes = Object.keys(uiAttrsMap).map(attrId => ({
                             id: parseInt(attrId),
-                            name: 'Loaded Attribute', // Resolved in render
+                            name: 'Loaded Attribute',
                             values: Array.from(uiAttrsMap[attrId])
                         }));
                         setSelectedAttributes(remappedAttributes);
+                    }
+                    if (data.images) {
+                        setProductImages(data.images.map(img => img.file_path));
                     }
                 })
                 .catch(err => {
@@ -109,6 +104,21 @@ const CreateProduct = () => {
         }
     }, [id]);
 
+    const handleFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        const readers = files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+        });
+        
+        Promise.all(readers).then(results => {
+            setProductImages([...productImages, ...results]);
+        });
+    };
+
     const handleCategoryChange = (categoryId) => {
         setSelectedCategories((prev) =>
             prev.includes(categoryId)
@@ -117,21 +127,53 @@ const CreateProduct = () => {
         );
     };
 
+    const toggleCategory = (categoryId, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setExpandedCategories(prev => 
+            prev.includes(categoryId) 
+                ? prev.filter(id => id !== categoryId) 
+                : [...prev, categoryId]
+        );
+    };
+
     const renderNestedCategories = (cats, depth = 0) => {
-        return cats.map(cat => (
-            <div key={cat.id} style={{ paddingLeft: `${depth * 16}px`, marginBottom: '8px' }}>
-                <label className="custom-checkbox-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(cat.id)}
-                        onChange={() => handleCategoryChange(cat.id)}
-                    />
-                    <span className="checkbox-visual"></span>
-                    <span style={{ fontSize: '13px', color: '#333' }}>{cat.name}</span>
-                </label>
-                {cat.children && cat.children.length > 0 && renderNestedCategories(cat.children, depth + 1)}
-            </div>
-        ));
+        return cats.map(cat => {
+            const isExpanded = expandedCategories.includes(cat.id);
+            const hasChildren = cat.children && cat.children.length > 0;
+
+            return (
+                <div key={cat.id} style={{ paddingLeft: `${depth * 14}px`, marginBottom: '4px' }}>
+                    <div className="category-item-row" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {hasChildren ? (
+                            <span 
+                                className={`category-toggle ${isExpanded ? 'active' : ''}`}
+                                onClick={(e) => toggleCategory(cat.id, e)}
+                                style={{ cursor: 'pointer', fontSize: '10px', width: '12px', display: 'flex', justifyContent: 'center', color: '#888' }}
+                            >
+                                {isExpanded ? '▼' : '▶'}
+                            </span>
+                        ) : (
+                            <span style={{ width: '12px' }}></span>
+                        )}
+                        <label className="custom-checkbox-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                            <input
+                                type="checkbox"
+                                checked={selectedCategories.includes(cat.id)}
+                                onChange={() => handleCategoryChange(cat.id)}
+                            />
+                            <span className="checkbox-visual"></span>
+                            <span style={{ fontSize: '13px', color: '#1d2327', fontWeight: depth === 0 ? '500' : '400' }}>{cat.name}</span>
+                        </label>
+                    </div>
+                    {hasChildren && isExpanded && (
+                        <div className="category-children">
+                            {renderNestedCategories(cat.children, depth + 1)}
+                        </div>
+                    )}
+                </div>
+            );
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -148,22 +190,17 @@ const CreateProduct = () => {
                 name: title,
                 slug,
                 long_description: description,
-                short_description: shortDescription,
                 brand_id: brandId || null,
-                category_id: selectedCategories.length > 0 ? selectedCategories[0] : null, // WP allows multiple, but your DB might expect one. We send first for compatibility or adjust based on DB structure.
+                category_ids: selectedCategories,
                 status,
-                seo_title: seoTitle,
-                seo_description: seoDescription,
-                type: 'simple',
+                type: productType,
+                images: productImages,
                 variants: [
                     {
                         sku: sku,
-                        barcode: barcode,
                         price: price,
                         compare_at_price: compareAtPrice,
                         stock_quantity: stockQuantity,
-                        weight: weight,
-                        dimensions: dimensions,
                         attribute_values: selectedAttributes.flatMap(a => a.values)
                     }
                 ]
@@ -257,8 +294,8 @@ const CreateProduct = () => {
                             <div className="product-data-tabs">
                                 <div className={`pd-tab ${activeTab === 'general' ? 'active' : ''}`} onClick={() => setActiveTab('general')}>General</div>
                                 <div className={`pd-tab ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Inventory</div>
-                                <div className={`pd-tab ${activeTab === 'shipping' ? 'active' : ''}`} onClick={() => setActiveTab('shipping')}>Shipping</div>
                                 <div className={`pd-tab ${activeTab === 'attributes' ? 'active' : ''}`} onClick={() => setActiveTab('attributes')}>Attributes</div>
+                                <div className={`pd-tab ${activeTab === 'brand' ? 'active' : ''}`} onClick={() => setActiveTab('brand')}>Brand</div>
                             </div>
                             <div className="product-data-content">
                                 {activeTab === 'general' && (
@@ -279,28 +316,14 @@ const CreateProduct = () => {
                                             <label>SKU</label>
                                             <input type="text" className="editor-input" value={sku} onChange={e => setSku(e.target.value)} />
                                         </div>
-                                        <div className="pd-row">
-                                            <label>Barcode</label>
-                                            <input type="text" className="editor-input" value={barcode} onChange={e => setBarcode(e.target.value)} />
-                                        </div>
+
                                         <div className="pd-row">
                                             <label>Stock quantity</label>
                                             <input type="number" className="editor-input" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)} />
                                         </div>
                                     </div>
                                 )}
-                                {activeTab === 'shipping' && (
-                                    <div className="pd-panel">
-                                        <div className="pd-row">
-                                            <label>Weight (kg)</label>
-                                            <input type="number" step="0.01" className="editor-input" value={weight} onChange={e => setWeight(e.target.value)} placeholder="0.00" />
-                                        </div>
-                                        <div className="pd-row">
-                                            <label>Dimensions (LxWxH)</label>
-                                            <input type="text" className="editor-input" value={dimensions} onChange={e => setDimensions(e.target.value)} placeholder="e.g. 10x10x5 cm" />
-                                        </div>
-                                    </div>
-                                )}
+
                                 {activeTab === 'attributes' && (
                                     <div className="pd-panel">
                                         <div className="d-flex align-items-center mb-4 gap-2">
@@ -370,42 +393,20 @@ const CreateProduct = () => {
                                         </div>
                                     </div>
                                 )}
-
+                                {activeTab === 'brand' && (
+                                    <div className="pd-panel">
+                                        <div className="pd-row">
+                                            <label>Select Brand</label>
+                                            <select className="editor-select" value={brandId} onChange={e => setBrandId(e.target.value)}>
+                                                <option value="">No Brand (Standard)</option>
+                                                {brands.map(brand => (
+                                                    <option key={brand.id} value={brand.id}>{brand.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </div>
-
-                    <div className="editor-card padding-card">
-                        <h2 className="editor-card-title m-0 mb-3" style={{ borderBottom: 'none', padding: 0 }}>Product Short Description</h2>
-                        <textarea
-                            className="editor-textarea"
-                            rows="4"
-                            value={shortDescription}
-                            onChange={(e) => setShortDescription(e.target.value)}
-                            placeholder="Enter a brief excerpt..."
-                        ></textarea>
-                    </div>
-
-                    <div className="editor-card padding-card">
-                        <h2 className="editor-card-title m-0 mb-3" style={{ borderBottom: 'none', padding: 0 }}>SEO Meta Data</h2>
-                        <div className="form-group mb-4">
-                            <label className="editor-label">SEO Title</label>
-                            <input
-                                type="text"
-                                className="title-input"
-                                style={{ fontSize: '15px', padding: '6px 10px' }}
-                                value={seoTitle}
-                                onChange={(e) => setSeoTitle(e.target.value)}
-                            />
-                        </div>
-                        <div className="form-group mb-4">
-                            <label className="editor-label">SEO Description</label>
-                            <textarea
-                                className="editor-textarea"
-                                rows="3"
-                                value={seoDescription}
-                                onChange={(e) => setSeoDescription(e.target.value)}
-                            ></textarea>
                         </div>
                     </div>
                 </div>
@@ -445,24 +446,17 @@ const CreateProduct = () => {
 
                     <div className="editor-card sidebar-card">
                         <div className="sidebar-header">
-                            <h3 className="editor-card-title m-0">Brand</h3>
-                        </div>
-                        <div className="sidebar-body">
-                            <select className="editor-select" value={brandId} onChange={e => setBrandId(e.target.value)}>
-                                <option value="">Select a brand...</option>
-                                {brands.map(brand => (
-                                    <option key={brand.id} value={brand.id}>{brand.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="editor-card sidebar-card">
-                        <div className="sidebar-header">
                             <h3 className="editor-card-title m-0">Product Image</h3>
                         </div>
                         <div className="sidebar-body text-center">
-                            <div className="image-upload-area">
+                            <input 
+                                type="file" 
+                                multiple 
+                                id="product-images-input" 
+                                style={{ display: 'none' }} 
+                                onChange={handleFileChange}
+                            />
+                            <div className="image-upload-area" onClick={() => document.getElementById('product-images-input').click()} style={{ cursor: 'pointer' }}>
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '10px' }}>
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="17 8 12 3 7 8"></polyline>
@@ -470,6 +464,26 @@ const CreateProduct = () => {
                                 </svg>
                                 <div>Click to browse or drop an image here</div>
                                 <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>PNG, JPG, WEBP up to 2MB</div>
+                            </div>
+                            <div className="d-flex flex-wrap gap-2 mt-3">
+                                {productImages.map((img, i) => (
+                                    <div key={i} className="position-relative" style={{ width: '60px', height: '60px' }}>
+                                        <img 
+                                            src={img.startsWith('data:') ? img : `http://localhost:8000/storage/${img}`} 
+                                            alt="" 
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }}
+                                        />
+                                        <button 
+                                            type="button" 
+                                            className="btn-close-small" 
+                                            style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '15px', height: '15px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setProductImages(productImages.filter((_, idx) => idx !== i));
+                                            }}
+                                        >x</button>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
